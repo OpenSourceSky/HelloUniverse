@@ -6,6 +6,8 @@ from PySide.QtGui import *
 
 import numpy as np
 
+from astrometry.blind.plotstuff import *
+
 '''
 
 widget.setMinimumSize(QSize(800, 600))
@@ -64,11 +66,21 @@ class HelloWorldApp(QWidget):
         layout.addWidget(label)
 
         imagebox = CustomWidget()
-        W,H = 5,5
-        img = np.zeros((H,W, 4), np.uint8)
-        img[:,:,0] = 255
-        img[:,:,1] = np.linspace(0, 255, H).astype(np.uint8)[:,np.newaxis]
-        img[:,:,2] = np.linspace(0, 255, W).astype(np.uint8)[np.newaxis,:]
+        W,H = 600,400
+
+        # img = np.zeros((H,W, 4), np.uint8)
+        # img[:,:,0] = 255
+        # img[:,:,1] = np.linspace(0, 255, H).astype(np.uint8)[:,np.newaxis]
+        # img[:,:,2] = np.linspace(0, 255, W).astype(np.uint8)[np.newaxis,:]
+
+        plot = Plotstuff('png', size=(W,H))
+        plot.color = 'blue'
+        plot.plot('fill')
+        #img = plot.get_image_as_numpy(flat=False)
+        img = plot.view_image_as_numpy()
+        print 'Img:', img.shape, img.dtype
+        print img[:3,:3,:]
+        
         imagebox.setImage(img)
         imagebox.setMinimumSize(QSize(400, 400))
         layout.addWidget(imagebox)
