@@ -1,0 +1,67 @@
+\input{tikzfig}
+
+%\input{slides-common}
+
+\newlength{\quadfigwidth}
+\newlength{\quadfigheight}
+\setlength{\quadfigwidth}{2.2in}
+\setlength{\quadfigheight}{2.2in}
+
+\setpagesize{\quadfigwidth}{\quadfigheight}
+
+%\pdfpagewidth 3.1in
+%\pdfpageheight 3.1in
+
+%\begin{scope}[nodes={draw, thick, fill=yellow, star, star points=5,
+%      star point ratio=0.4}]
+%  \draw (0,0)     node {\rul     e{2pt}{0pt}};
+%  \draw (5,5)     node {\rule{2pt}{0pt}};
+%  \draw (1,4)     node {\rule{2pt}{0pt}};
+%  \draw (3.5,1.5) node {\rule{2pt}{0pt}};
+%\end{scope}
+
+% 213, 74, 60
+\definecolor{anred}{rgb}{0.83,0.29,0.24}
+
+\addtolength{\voffset}{0.02\textheight}
+
+\begin{document}
+\thispagestyle{empty}
+
+\centering
+\def\scale{5}
+\def\star{}
+\def\ticklen{1pt}
+\begin{tikzpicture}[scale=\scale, line join=miter]
+
+	\tikzstyle{axes}=[]
+    % Need: \cx + \dx <= 1
+    %       \cx < \dx
+    \def\cx{0.55}
+    \def\cy{0.2}
+    \def\dx{0.4}
+    \def\dy{0.8}
+
+    %\fill [blue!20, draw=blue!70, thick] (0,0) -- (\dx,\dy) -- (1,1) -- (\cx,\cy) -- cycle;
+
+\fill [anred, draw=black!50!anred, very thick] (0,0) -- (\dx,\dy) -- (1,1) -- (\cx,\cy) -- cycle;
+%\fill [anred] (0,0) -- (\dx,\dy) -- (1,1) -- (\cx,\cy) -- cycle;
+
+	\begin{scope}[style=axes]
+	  \draw[very thick] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;
+	\end{scope}
+
+	\draw [very thick] (\cx,0) -- (\cx,\cy) -- (0,\cy);
+	\draw [very thick] (\dx,0) -- (\dx,\dy) -- (0,\dy);
+
+    \begin{scope}[nodes={draw, thick, fill=yellow, star, star points=5, star point height=3pt, inner sep=2pt}]
+      \def\star{node{}}
+      \draw
+	  (0,0)     \star
+	  (1,1)     \star
+	  (\cx,\cy) \star
+	  (\dx,\dy) \star;
+    \end{scope}
+
+  \end{tikzpicture}
+\end{document}

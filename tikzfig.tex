@@ -1,0 +1,31 @@
+\documentclass[12pt]{article}
+\usepackage{tikz}
+\usetikzlibrary{arrows,shapes}
+\usepackage{helvet}
+
+% \setpagesize{width}{height}   {margin}
+\newcommand{\setpagesize}[2]{
+  \setlength{\pdfpagewidth}{#1}
+  \setlength{\pdfpageheight}{#2}
+  %\addtolength{\pdfpageheight}{#3}
+  %\addtolength{\pdfpagewidth}{#3}
+  \setlength{\textheight}{\pdfpageheight}
+  \setlength{\textwidth}{\pdfpagewidth}
+  %\setlength\topmargin{-1in}
+  \setlength{\voffset}{-1in}
+  \setlength{\topmargin}{0in}
+  \setlength{\headheight}{0in}
+  \setlength{\headsep}{0in}
+  \setlength{\footskip}{0in}
+  \setlength{\hoffset}{-1in}
+  %\setlength{\oddsidemargin}{-1in}
+  %\setlength{\evensidemargin}{-1in}
+  \setlength{\oddsidemargin}{0in}
+  \setlength{\evensidemargin}{0in}
+  \setlength{\marginparwidth}{0in}
+  \setlength{\marginparpush}{0in}
+  \setlength{\marginparsep}{0in}
+  \setlength{\parindent}{0in}
+  \setlength{\parskip}{0in}
+}
+
