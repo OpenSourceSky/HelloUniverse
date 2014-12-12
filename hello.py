@@ -37,57 +37,25 @@ class CustomWidget(QWidget):
     def setImage(self, image, format=QImage.Format_ARGB32):
         ''' numpy image '''
         H,W,planes = image.shape
-        #self.npimage = image.copy()
-        #print self.npimage[:4,:4,:]
-        #print 'NP image:', self.npimage
-        #self.qimage = QImage(self.npimage.data, W, H, format)
-        #self.qimage = QImage(self.npimage.tobytes(), W, H, format)
-        #self.qimage = QImage(self.npimage, W, H, format)
-
-        #a = self.npimage
-        #B = (255 << 24) | (a[:,:,1] << 16) | (a[:,:,2] << 8) | (a[:,:,3])
-        #self.qimage = QImage(B.flatten(), W, H, QImage.Format_RGB32)        
-
-        #a = self.npimage
-        #B = np.frombuffer(a.data, dtype=np.uint32, #B = (255 << 24) | (a[:,:,1] << 16) | (a[:,:,2] << 8) | (a[:,:,3])
         self.qimage = QImage(
-            # (image[:,:,0].astype(np.uint32) << 24) | 
-            # (image[:,:,1].astype(np.uint32) << 16) | 
-            # (image[:,:,2].astype(np.uint32) << 8 ) | 
-            # (image[:,:,3].astype(np.uint32)),
             (image[:,:,0] * (1<<24)) |
             (image[:,:,1] * (1<<16)) |
             (image[:,:,2] * (1<<8)) |
             (image[:,:,3]),
             W, H, QImage.Format_RGB32)        
         
-        #a = np.random.randint(0,256,size=(100,100,3)).astype(np.uint32)
-        #B = (255 << 24) | (a[:,:,0] << 16) | (a[:,:,1] << 8) | (a[:,:,2])
-        #self.qimage = QImage(B.flatten(), W, H, QImage.Format_RGB32)        
-
-        #print 'bytes:', self.npimage.tobytes()
-        #print 'bytes:', repr(self.npimage.tobytes())
-        
     def paintEvent(self, event):
         p = QPainter(self)
-        print 'size', self.size()
         if self.qimage is not None:
-            print 'Drawing image'
             #p.drawImage(0, 0, self.qimage)
             rect = QRect(QPoint(0,0), self.size())
-            print 'rect:', rect
-            print 'image size:', self.qimage.size()
-            sourcerect = QRect(QPoint(0,0), self.qimage.size())
-            #p.drawImage(rect, self.qimage, sourcerect)
             p.drawImage(rect, self.qimage)
-            
-#class HelloWorldApp(QLabel):
+
 class HelloWorldApp(QWidget):
     ''' A Qt application that displays the text, "Hello, world!" '''
     def __init__(self):
         super(HelloWorldApp, self).__init__()
         # Initialize the object as a QLabel
-        #win = QWidget()
         label = QLabel('Hello, world!')
         label.setAlignment(Qt.AlignCenter)
 
