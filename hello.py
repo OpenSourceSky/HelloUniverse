@@ -1,5 +1,6 @@
 import sys
- 
+import os
+
 # Import the core and GUI elements of Qt
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -35,6 +36,10 @@ class CustomWidget(QWidget):
     def __init__(self):
         super(CustomWidget, self).__init__()
         self.qimage = None
+
+    def setQImage(self, qim):
+        self.qimage = qim
+        self.repaint()
         
     def setImage(self, image, format=QImage.Format_ARGB32):
         ''' numpy image '''
@@ -55,17 +60,26 @@ class CustomWidget(QWidget):
 
 class HelloWorldApp(QWidget):
     ''' A Qt application that displays the text, "Hello, world!" '''
-    def __init__(self):
+    def __init__(self, app):
         super(HelloWorldApp, self).__init__()
+        self.app = app
+        self.solveThreads = {}
+
         # Initialize the object as a QLabel
-        label = QLabel('Hello, world!')
-        label.setAlignment(Qt.AlignCenter)
+        self.statusLabel = QLabel('Hello, world!')
+        self.statusLabel.setAlignment(Qt.AlignCenter)
+
+        openfile = QPushButton('Open Image', self)
+        openfunc = Slot()(lambda: self.open_file())
+        #openfile.clicked.connect(open_file)
+        openfile.clicked.connect(openfunc)
 
         # A vertical box layout
         layout = QVBoxLayout()
-        layout.addWidget(label)
+        layout.addWidget(openfile)
+        layout.addWidget(self.statusLabel)
 
-        imagebox = CustomWidget()
+        self.imagebox = CustomWidget()
         W,H = 600,400
 
         plot = Plotstuff('png', size=(W,H))
@@ -73,9 +87,9 @@ class HelloWorldApp(QWidget):
         plot.plot('fill')
         img = plot.view_image_as_numpy()
         
-        imagebox.setImage(img)
-        imagebox.setMinimumSize(QSize(400, 400))
-        layout.addWidget(imagebox)
+        self.imagebox.setImage(img)
+        self.imagebox.setMinimumSize(QSize(400, 400))
+        layout.addWidget(self.imagebox)
         
         self.setLayout(layout)
         
@@ -83,12 +97,15 @@ class HelloWorldApp(QWidget):
         self.setMinimumSize(QSize(600, 400))
         self.setWindowTitle('Hello, world!')
  
-    def run(self, qt_app):
-        ''' Show the application window and start the main event loop '''
+    def run(self):
+        ''' Show the application window and start the main event loop.
+
+        DOES NOT RETURN until the gui is closed.
+        '''
         #self.showFullScreen()
         self.show()
         self.raise_()
-        qt_app.exec_()
+        self.app.exec_()
 
     def keyPressEvent(self, event):
         super(HelloWorldApp, self).keyPressEvent(event)
@@ -99,8 +116,61 @@ class HelloWorldApp(QWidget):
             # else:
             #     self.showFullScreen()
             self.close()
+
+    def setStatus(self, txt):
+        self.statusLabel.setText(txt)
+            
+    def open_file(self):
+        print 'open_file'
+
+        if True:
+            fn = '/Users/dstn/qt/photos/IMG_9346.JPG'
+        else:
+            fn,filt = QFileDialog.getOpenFileName(
+                self, 'Open Image', os.getcwd(),
+                'Image Files (*.jpg)')
+        print 'selected file:', fn
+        if fn == '':
+            return
+
+        qim = QImage(fn)
+        if qim == None:
+            return
+        self.imagebox.setQImage(qim)
+
+        print 'creating solve thread'
+        solve = SolveImageThread(fn)
+        print 'defining finished function'
+        finfunc = Slot(str)(lambda fn: self.solve_finished(fn))
+        print finfunc
+        print 'connecting'
+        solve.finishedSignal.connect(finfunc)
+        print 'starting thread'
+        solve.start()
+        # FIXME -- if it already existed?
+        self.solveThreads[fn] = solve
+        
+    def solve_finished(self, fn):
+        print 'Solve finished:', fn
+        try:
+            del self.solveThreads[fn]
+        except:
+            pass
+        
+class SolveImageThread(QThread):
+    finishedSignal = Signal(str)
+
+    def __init__(self, fn):
+        super(SolveImageThread, self).__init__()
+        self.fn = fn
+
+    def run(self):
+        print 'Running'
+        QThread.sleep(5)
+        print 'Done!'
+        self.finishedSignal.emit(self.fn)
         
 # Create the QApplication object
-qt_app = QApplication(sys.argv)
+app = QApplication(sys.argv)
 # Create an instance of the application and run it
-HelloWorldApp().run(qt_app)
+HelloWorldApp(app).run()
