@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import datetime
 
 # Import the core and GUI elements of Qt
 from PySide.QtCore import *
@@ -10,6 +11,7 @@ import numpy as np
 
 from astrometry.blind.plotstuff import *
 from astrometry.util.util import *
+from astrometry.util import EXIF
 
 '''
 
@@ -156,6 +158,32 @@ class HelloWorldApp(QWidget):
             return
         self.imagebox.setQImage(qim)
 
+        f = open(fn, 'rb')
+        exif = EXIF.process_file(f)
+        #print 'exif:', exif
+        for k in exif.keys():
+            print 'EXIF key:', k
+            try:
+                print str(exif[k])
+            except:
+                pass
+
+        timestamp = None
+        try:
+            datestr = exif.get('EXIF DateTimeOriginal')
+            if not datestr:
+                datestr = exif.get('Image DateTime')
+            if datestr:
+                timestamp = datetime.datetime.strptime(str(datestr),
+                                                       '%Y:%m:%d %H:%M:%S')
+                print 'Timestamp:', timestamp
+        except:
+            import traceback
+            traceback.print_exc()
+            pass
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+        
         print 'creating solve thread'
         solve = SolveImageThread(fn)
         print 'defining finished function'
