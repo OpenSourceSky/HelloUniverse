@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 
 # Import the core and GUI elements of Qt
 from PySide.QtCore import *
@@ -8,6 +9,7 @@ from PySide.QtGui import *
 import numpy as np
 
 from astrometry.blind.plotstuff import *
+from astrometry.util.util import *
 
 '''
 
@@ -44,12 +46,16 @@ class CustomWidget(QWidget):
     def setImage(self, image, format=QImage.Format_ARGB32):
         ''' numpy image '''
         H,W,planes = image.shape
-        self.qimage = QImage(
-            (image[:,:,0] * (1<<24)) |
-            (image[:,:,1] * (1<<16)) |
-            (image[:,:,2] * (1<<8)) |
-            (image[:,:,3]),
-            W, H, QImage.Format_RGB32)        
+        self.setQImage(QImage(
+            # (image[:,:,0] * (1<<24)) |
+            # (image[:,:,1] * (1<<16)) |
+            # (image[:,:,2] * (1<<8)) |
+            # (image[:,:,3]),
+            (image[:,:,3] * (1<<24)) |
+            (image[:,:,0] * (1<<16)) |
+            (image[:,:,1] * (1<<8)) |
+            (image[:,:,2]),
+            W, H, QImage.Format_RGB32))
         
     def paintEvent(self, event):
         p = QPainter(self)
@@ -65,6 +71,14 @@ class HelloWorldApp(QWidget):
         self.app = app
         self.solveThreads = {}
 
+        # The image filename being solved/shown
+        self.imagefn = None
+        # The WCS filename
+        self.wcsfn = None
+
+        # The plotstuff plotting object
+        self.plotstuff = None
+        
         # Initialize the object as a QLabel
         self.statusLabel = QLabel('Hello, world!')
         self.statusLabel.setAlignment(Qt.AlignCenter)
@@ -86,6 +100,8 @@ class HelloWorldApp(QWidget):
         plot.color = 'blue'
         plot.plot('fill')
         img = plot.view_image_as_numpy()
+        print 'Image:', img.shape, img.dtype
+        print img[:4,:4,:]
         
         self.imagebox.setImage(img)
         self.imagebox.setMinimumSize(QSize(400, 400))
@@ -133,6 +149,8 @@ class HelloWorldApp(QWidget):
         if fn == '':
             return
 
+        self.imagefn = fn
+        
         qim = QImage(fn)
         if qim == None:
             return
@@ -156,6 +174,60 @@ class HelloWorldApp(QWidget):
             del self.solveThreads[fn]
         except:
             pass
+        base = '.'.join(fn.split('.')[:-1])
+        base = str(base)
+        print 'Base filename', base
+        wcsfn = base + '.wcs'
+        if not os.path.exists(wcsfn):
+            return
+        print 'Solved!'
+        self.wcsfn = wcsfn
+
+        print 'wcsfn:', wcsfn, type(wcsfn)
+        wcs = Sip(wcsfn, 0)
+        w = self.imagebox.width()
+        h = self.imagebox.height()
+        ra,dec = wcs.radec_center()
+        print 'RA,Dec center', ra,dec
+        pixscale = wcs.pixel_scale()
+        imw = wcs.get_width()
+        imh = wcs.get_height()
+        scale = 2. / min(w / float(imw), h / float(imh))
+
+        plotwcs = Tan(ra, dec, w/2.+0.5, h/2.+0.5,
+                      wcs.cd[0]*scale, wcs.cd[1]*scale,
+                      wcs.cd[2]*scale, wcs.cd[3]*scale,
+                      w, h)
+        
+        self.plotstuff = Plotstuff('png', size=(w,h), ra=ra, dec=dec,
+                                   width=1.)
+        plot = self.plotstuff
+        plot.wcs_tan = plotwcs
+        print 'Plot WCS:'
+        anwcs_print_stdout(plot.wcs)
+        print 'WCS:', str(plotwcs)
+        plot.color = 'black'
+        plot.alpha = 1.
+        plot.apply_settings()
+        plot.plot('fill')
+
+        plot.color = 'white'
+        plot.resample = 1
+        plot.apply_settings()
+        plot.image.set_file(self.imagefn)
+        plot.image.set_wcs_file(self.wcsfn, 0)
+        plot.plot('image')
+
+        plot.color = 'green'
+        plot.outline.wcs_file = wcsfn
+        plot.plot('outline')
+
+        plot.color = 'gray'
+        plot.plot_grid(10., 10., 10., 10.)
+        img = plot.view_image_as_numpy()
+        print 'Image:', img.shape, img.dtype
+        print img[:4,:4,:]
+        self.imagebox.setImage(img)
         
 class SolveImageThread(QThread):
     finishedSignal = Signal(str)
@@ -166,7 +238,9 @@ class SolveImageThread(QThread):
 
     def run(self):
         print 'Running'
-        QThread.sleep(5)
+        cmd = 'solve-field --continue --downsample 2 --objs 100 --no-plots %s' % self.fn
+        #os.system(cmd)
+        time.sleep(1)
         print 'Done!'
         self.finishedSignal.emit(self.fn)
         
