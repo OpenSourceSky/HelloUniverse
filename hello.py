@@ -70,10 +70,27 @@ class DrawingPanel(QWidget):
     def paintEvent(self, event):
         p = QPainter(self)
         if self.qimage is not None:
-            #p.drawImage(0, 0, self.qimage)
-            rect = QRect(QPoint(0,0), self.size())
-            p.drawImage(rect, self.qimage)
-
+            p.drawImage(0, 0, self.qimage)
+            #rect = QRect(QPoint(0,0), self.size())
+            #p.drawImage(rect, self.qimage)
+            
+class SkyPlotPanel(DrawingPanel):
+    def __init__(self, wcsfn, imgfn, targets):
+        self.wcsfn = wcsfn
+        self.imgfn = imgfn
+        #self.timestamp = timestamp
+        self.targets = targets
+        self.lastplot = None
+        self.replot()
+        
+    def replot(self):
+        w = self.width()
+        h = self.height()
+        args = [w, h, self.wcsfn, self.imgfn, self.targets]
+        if self.lastplot == args:
+            return
+        
+            
 def get_wcs_filename(fn):
     base = '.'.join(fn.split('.')[:-1])
     base = str(base)
@@ -327,10 +344,13 @@ class HelloWorldApp(QWidget):
         if wcsfn is None:
             self.setStatus('Failed to located your image on the sky!')
             return
+
+        # self.skyplot.imgfn = self.imagefn
+        # self.skyplot.wcsfn = self.wcsfn
+        # self.skyplot.targets = self.targets
+
         plot = self.make_plot()
         img = plot.view_image_as_numpy()
-        print 'Image:', img.shape, img.dtype
-        #print img[:4,:4,:]
         self.imagebox.setImage(img)
 
     def make_plot(self):
@@ -453,6 +473,7 @@ class RedrawPlotThread(QThread):
                 del locker
             print 'Drawing plot...'
             self.main.redraw_plot()
+            #time.sleep(0.1)
             print 'Finished drawing plot.'
             self.finishedSignal.emit()
             if True:
