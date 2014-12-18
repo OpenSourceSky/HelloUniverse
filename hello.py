@@ -88,7 +88,7 @@ class HelloWorldApp(QWidget):
         self.app = app
         self.solveThreads = {}
 
-        self.redraw_worker = RedrawPlotThread(self)
+        #self.redraw_worker = RedrawPlotThread(self)
         
         # The image filename being solved/shown
         self.imagefn = None
@@ -139,8 +139,9 @@ class HelloWorldApp(QWidget):
         
     def resizeEvent(self, event):
         #print 'Resize'
-        self.redraw_worker.replot(None)
-            
+        #self.redraw_worker.replot(None)
+        self.redraw_plot()
+        
     def run(self):
         ''' Show the application window and start the main event loop.
 
@@ -288,24 +289,9 @@ class HelloWorldApp(QWidget):
 
     def redraw_plot(self):
         wcsfn = self.wcsfn
-        #print 'wcsfn:', wcsfn, type(wcsfn)
         if wcsfn is None:
             self.setStatus('Failed to located your image on the sky!')
             return
-
-        t0 = time.clock()
-        plot = self.make_plot()
-        print 'plot:', time.clock()-t0
-        t0 = time.clock()
-        img = plot.view_image_as_numpy()
-        print 'view_image:', time.clock()-t0
-        t0 = time.clock()
-        self.imagebox.setImage(img)
-        print 'setImage:', time.clock()-t0
-        t0 = time.clock()
-
-    def make_plot(self):
-        t0 = time.clock()
 
         w = self.imagebox.width()
         h = self.imagebox.height()
@@ -322,14 +308,10 @@ class HelloWorldApp(QWidget):
         plot = Plotstuff('png', size=(w,h), ra=ra, dec=dec,
                          width=1.)
         plot.wcs_tan = plotwcs
-        #anwcs_print_stdout(plot.wcs)
         plot.color = 'black'
         plot.alpha = 1.
         plot.apply_settings()
         plot.plot('fill')
-
-        print 'fill:', time.clock()-t0
-        t0 = time.clock()
         
         plot.color = 'white'
         plot.resample = 1
@@ -337,23 +319,14 @@ class HelloWorldApp(QWidget):
         plot.image.set_file(self.imagefn)
         plot.image.set_wcs_file(self.wcsfn, 0)
         plot.plot('image')
-
-        print 'image:', time.clock()-t0
-        t0 = time.clock()
         
         plot.color = 'green'
         plot.outline.wcs_file = self.wcsfn
         plot.plot('outline')
 
-        print 'outline:', time.clock()-t0
-        t0 = time.clock()
-
         plot.color = 'gray'
         plot.alpha = 0.5
         plot.plot_grid(10., 10., 10., 10.)
-
-        print 'grid:', time.clock()-t0
-        t0 = time.clock()
         
         plot.ann.NGC = False
         plot.ann.constellations = True
@@ -363,9 +336,6 @@ class HelloWorldApp(QWidget):
         plot.ann.bright = False
         plot.plot('annotations')
 
-        print 'constellations:', time.clock()-t0
-        t0 = time.clock()
-        
         plot.bg_rgba = (0., 0., 0., 0.8)
         plot.bg_box = 1
         plot.pargs.marker_fg_layer = 1
@@ -383,6 +353,13 @@ class HelloWorldApp(QWidget):
         plot.ann.constellation_labels = False
         plot.ann_constellation_pastel = False
         plot.plot('annotations')
+        
+        img = plot.view_image_as_numpy()
+        self.imagebox.setImage(img)
+
+    def make_plot(self):
+        t0 = time.clock()
+
 
         print 'targets:', time.clock()-t0
         t0 = time.clock()
