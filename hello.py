@@ -88,8 +88,6 @@ class HelloWorldApp(QWidget):
         self.app = app
         self.solveThreads = {}
 
-        #self.redraw_worker = RedrawPlotThread(self)
-        
         # The image filename being solved/shown
         self.imagefn = None
         # The WCS filename
@@ -133,13 +131,7 @@ class HelloWorldApp(QWidget):
         fn = 'data/example.jpg'
         self.open_file(fn=fn)
 
-    def replot_finished(self):
-        #print 'Redrawing plot finished.'
-        self.update()
-        
     def resizeEvent(self, event):
-        #print 'Resize'
-        #self.redraw_worker.replot(None)
         self.redraw_plot()
         
     def run(self):
@@ -357,16 +349,7 @@ class HelloWorldApp(QWidget):
         img = plot.view_image_as_numpy()
         self.imagebox.setImage(img)
 
-    def make_plot(self):
-        t0 = time.clock()
 
-
-        print 'targets:', time.clock()-t0
-        t0 = time.clock()
-
-        return plot
-        
-        
 class InterpEphemeris(object):
     def __init__(self, filename):
         self.eph = fits_table(filename)
@@ -376,54 +359,6 @@ class InterpEphemeris(object):
         dec = np.interp(jd, self.eph.jd, self.eph.dec)
         return ra,dec
         
-
-class RedrawPlotThread(QThread):
-    finishedSignal = Signal()
-
-    def __init__(self, main):
-        super(RedrawPlotThread, self).__init__()
-        self.mutex = QMutex()
-        self.cond = QWaitCondition()
-        self.main = main
-        self.restart = False
-
-    def replot(self, plotargs):
-        #print 'Replot'
-        if True:
-            #print 'Locking mutex...'
-            locker = QMutexLocker(self.mutex)
-            self.plotargs = plotargs
-            if not self.isRunning():
-                #print 'Starting thread...'
-                self.start()
-            else:
-                self.restart = True
-                #print 'Waking condition variable.'
-                self.cond.wakeOne()
-            del locker
-                
-    def run(self):
-        #print 'Redraw worker started'
-        while True:
-            if True:
-                #print 'Locking mutex...'
-                locker = QMutexLocker(self.mutex)
-                plotargs = self.plotargs
-                del locker
-            #print 'Drawing plot...'
-            self.main.redraw_plot()
-            #time.sleep(0.1)
-            #print 'Finished drawing plot.'
-            self.finishedSignal.emit()
-            if True:
-                #print 'Locking mutex...'
-                locker = QMutexLocker(self.mutex)
-                if not self.restart:
-                    #print 'Waiting on condition...'
-                    self.cond.wait(self.mutex)
-                self.restart = False
-                del locker
-            
 class SolveImageThread(QThread):
     finishedSignal = Signal(str)
 
