@@ -11,7 +11,9 @@ import numpy as np
 
 from astrometry.blind.plotstuff import *
 from astrometry.util.util import *
+from astrometry.util.fits import *
 from astrometry.util import EXIF
+from astrometry.util.starutil_numpy import *
 
 '''
 
@@ -36,9 +38,9 @@ sys.exit(app.exec_())
 
 '''
 
-class CustomWidget(QWidget):
+class DrawingPanel(QWidget):
     def __init__(self):
-        super(CustomWidget, self).__init__()
+        super(DrawingPanel, self).__init__()
         self.qimage = None
 
     def setQImage(self, qim):
@@ -53,10 +55,16 @@ class CustomWidget(QWidget):
             # (image[:,:,1] * (1<<16)) |
             # (image[:,:,2] * (1<<8)) |
             # (image[:,:,3]),
+
+            # (image[:,:,3] * (1<<24)) |
+            # (image[:,:,0] * (1<<16)) |
+            # (image[:,:,1] * (1<<8)) |
+            # (image[:,:,2]),
+
             (image[:,:,3] * (1<<24)) |
-            (image[:,:,0] * (1<<16)) |
+            (image[:,:,2] * (1<<16)) |
             (image[:,:,1] * (1<<8)) |
-            (image[:,:,2]),
+            (image[:,:,0]),
             W, H, QImage.Format_RGB32))
         
     def paintEvent(self, event):
@@ -82,7 +90,7 @@ class HelloWorldApp(QWidget):
         self.plotstuff = None
         
         # Initialize the object as a QLabel
-        self.statusLabel = QLabel('Hello, world!')
+        self.statusLabel = QLabel('Hello, universe!')
         self.statusLabel.setAlignment(Qt.AlignCenter)
 
         openfile = QPushButton('Open Image', self)
@@ -90,20 +98,31 @@ class HelloWorldApp(QWidget):
         #openfile.clicked.connect(open_file)
         openfile.clicked.connect(openfunc)
 
+        targetline = QHBoxLayout()
+        targetline.addWidget(QLabel('Targets:'))
+        self.targets = QLineEdit('Planets, Polaris', self)
+        targetline.addWidget(self.targets)
+        targetsfunc = Slot()(lambda: self.targets_changed())
+        #self.targets.textEdited.connect(targetsfunc)
+        self.targets.editingFinished.connect(targetsfunc)
+        
         # A vertical box layout
         layout = QVBoxLayout()
         layout.addWidget(openfile)
         layout.addWidget(self.statusLabel)
-
-        self.imagebox = CustomWidget()
+        #layout.addWidget(targetline)
+        layout.addItem(targetline)
+        
+        self.imagebox = DrawingPanel()
         W,H = 600,400
 
+        self.color = 'blue'
         plot = Plotstuff('png', size=(W,H))
         plot.color = 'blue'
         plot.plot('fill')
         img = plot.view_image_as_numpy()
         print 'Image:', img.shape, img.dtype
-        print img[:4,:4,:]
+        #print img[:4,:4,:]
         
         self.imagebox.setImage(img)
         self.imagebox.setMinimumSize(QSize(400, 400))
@@ -113,7 +132,9 @@ class HelloWorldApp(QWidget):
         
         # Set the size, alignment, and title
         self.setMinimumSize(QSize(600, 400))
-        self.setWindowTitle('Hello, world!')
+        self.setWindowTitle('Hello, universe!')
+        icon = QIcon('logo-128.png')
+        self.setWindowIcon(icon)
  
     def run(self):
         ''' Show the application window and start the main event loop.
@@ -134,10 +155,28 @@ class HelloWorldApp(QWidget):
             # else:
             #     self.showFullScreen()
             self.close()
+            
 
     def setStatus(self, txt):
         self.statusLabel.setText(txt)
-            
+
+    def targets_changed(self):
+        print 'targets changed:', self.targets.text()
+
+        # ncolor = dict(blue='green', green='red', red='blue')
+        # self.color = ncolor[self.color]
+        # print 'color', self.color
+        # 
+        # W,H = self.size().width(), self.size().height()
+        # plot = Plotstuff('png', size=(W,H))
+        # plot.color = self.color
+        # plot.plot('fill')
+        # img = plot.view_image_as_numpy()
+        # print 'Image:', img.shape, img.dtype
+        # print img[:4,:4,:]
+        # self.imagebox.setImage(img)
+        self.redraw_plot()
+        
     def open_file(self):
         print 'open_file'
 
@@ -183,7 +222,10 @@ class HelloWorldApp(QWidget):
             pass
         if timestamp is None:
             timestamp = datetime.datetime.now()
-        
+
+        self.imageTimestamp = timestamp
+
+        self.setStatus('Locating your image on the sky...')
         print 'creating solve thread'
         solve = SolveImageThread(fn)
         print 'defining finished function'
@@ -197,6 +239,7 @@ class HelloWorldApp(QWidget):
         self.solveThreads[fn] = solve
         
     def solve_finished(self, fn):
+        self.setStatus('Located your image on the sky!')
         print 'Solve finished:', fn
         try:
             del self.solveThreads[fn]
@@ -210,7 +253,11 @@ class HelloWorldApp(QWidget):
             return
         print 'Solved!'
         self.wcsfn = wcsfn
+        self.redraw_plot()
 
+
+    def redraw_plot(self):
+        wcsfn = self.wcsfn
         print 'wcsfn:', wcsfn, type(wcsfn)
         wcs = Sip(wcsfn, 0)
         w = self.imagebox.width()
@@ -251,12 +298,75 @@ class HelloWorldApp(QWidget):
         plot.plot('outline')
 
         plot.color = 'gray'
+        plot.alpha = 0.5
         plot.plot_grid(10., 10., 10., 10.)
+
+        plot.ann.constellations = True
+        plot.ann.constellation_lines = True
+        plot.ann.constellation_labels = True
+        plot.ann.constellation_pastel = True
+        plot.ann.bright = False
+        plot.plot('annotations')
+
+        
+        targets = self.targets.text()
+        # split by ' ' or ','
+        # targets = targets.strip().split(' ')
+        # tt = []
+        # for t in targets:
+        #     tt.extend(t.split(','))
+        # targets = tt
+        targets = targets.strip().split(',')
+        targets = [t.strip() for t in targets]
+        
+        # Expand aliases
+        aliases = dict(planets=['Mercury','Venus','Mars','Jupiter','Saturn',
+                                'Neptune','Uranus'])
+        tt = []
+        for t in targets:
+            tt.extend(aliases.get(t.lower(), [t]))
+        targets = tt
+        print 'Targets:', targets
+            
+        plot.bg_rgba = (0., 0., 0., 0.8)
+        plot.bg_box = 1
+        plot.pargs.marker_fg_layer = 1
+        plot.apply_settings()
+        jd = datetojd(self.imageTimestamp)
+        for t in targets:
+            if len(t) == 0:
+                continue
+            print 'Target: "%s"' % t
+            if t in ['Jupiter', 'Mars']:
+                ephem = InterpEphemeris('%s-ephem.fits' % t.lower())
+                ra,dec = ephem(jd)
+                plot.ann.add_target(ra, dec, t)
+            else:
+                plot.ann.add_named_target(str(t))
+                
+        plot.color = 'green'
+        plot.ann.constellations = False
+        plot.ann.constellation_lines = False
+        plot.ann.constellation_labels = False
+        plot.ann_constellation_pastel = False
+        plot.plot('annotations')
+                
         img = plot.view_image_as_numpy()
         print 'Image:', img.shape, img.dtype
-        print img[:4,:4,:]
+        #print img[:4,:4,:]
         self.imagebox.setImage(img)
         
+        
+class InterpEphemeris(object):
+    def __init__(self, filename):
+        self.eph = fits_table(filename)
+    def __call__(self, jd):
+        # FIXME -- ugly!!
+        ra  = np.interp(jd, self.eph.jd, self.eph.ra)
+        dec = np.interp(jd, self.eph.jd, self.eph.dec)
+        return ra,dec
+        
+
 class SolveImageThread(QThread):
     finishedSignal = Signal(str)
 
