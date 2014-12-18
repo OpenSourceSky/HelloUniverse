@@ -1,5 +1,14 @@
-app:
-	pyinstaller --windowed --onefile hello.py
+gal.icns: gal-256.png
+	png2icns $@ $^
+
+ #--onefile
+#pyinstaller --windowed --onedir \
+#	--icon=gal.icns --name Hello --noconfirm hello.py 
+
+
+app: gal.icns
+	pyinstaller --noconfirm Hello.spec
+	cp gal.icns dist/hello.app/Contents/Resources/icon-windowed.icns
 .PHONY: app
 
 #
