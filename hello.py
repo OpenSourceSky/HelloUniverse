@@ -74,23 +74,6 @@ class DrawingPanel(QWidget):
             #rect = QRect(QPoint(0,0), self.size())
             #p.drawImage(rect, self.qimage)
             
-class SkyPlotPanel(DrawingPanel):
-    def __init__(self, wcsfn, imgfn, targets):
-        self.wcsfn = wcsfn
-        self.imgfn = imgfn
-        #self.timestamp = timestamp
-        self.targets = targets
-        self.lastplot = None
-        self.replot()
-        
-    def replot(self):
-        w = self.width()
-        h = self.height()
-        args = [w, h, self.wcsfn, self.imgfn, self.targets]
-        if self.lastplot == args:
-            return
-        
-            
 def get_wcs_filename(fn):
     base = '.'.join(fn.split('.')[:-1])
     base = str(base)
@@ -106,7 +89,6 @@ class HelloWorldApp(QWidget):
         self.solveThreads = {}
 
         self.redraw_worker = RedrawPlotThread(self)
-        #self.redraw_again = False
         
         # The image filename being solved/shown
         self.imagefn = None
@@ -116,84 +98,48 @@ class HelloWorldApp(QWidget):
         # The plotstuff plotting object
         self.plotstuff = None
         
-        # Initialize the object as a QLabel
         self.statusLabel = QLabel('Hello, universe!')
         self.statusLabel.setAlignment(Qt.AlignCenter)
 
-        #self.needsRedraw 
-        
         openfile = QPushButton('Open Image', self)
         openfunc = Slot()(lambda: self.open_file())
-        #openfile.clicked.connect(open_file)
         openfile.clicked.connect(openfunc)
 
         targetline = QHBoxLayout()
         targetline.addWidget(QLabel('Targets:'))
         tt = 'Planets, Polaris'
-        self.targets = self.parse_targets(tt)
+        self.targets = []
         self.targetBox = QLineEdit(tt, self)
         targetline.addWidget(self.targetBox)
         targetsfunc = Slot()(lambda: self.targets_changed())
-        #self.targets.textEdited.connect(targetsfunc)
         self.targetBox.editingFinished.connect(targetsfunc)
-        
+
+        self.imagebox = DrawingPanel()
+
         # A vertical box layout
         layout = QVBoxLayout()
         layout.addWidget(openfile)
         layout.addWidget(self.statusLabel)
-        #layout.addWidget(targetline)
         layout.addItem(targetline)
-        
-        self.imagebox = DrawingPanel()
-
-        # self.color = 'blue'
-        # plot = Plotstuff('png', size=(W,H))
-        # plot.color = 'blue'
-        # plot.plot('fill')
-        # img = plot.view_image_as_numpy()
-        # print 'Image:', img.shape, img.dtype
-        # #print img[:4,:4,:]
-        # self.imagebox.setImage(img)
-        #self.imagebox.setMinimumSize(QSize(H, H))
         layout.addWidget(self.imagebox, stretch=1)
-        
         self.setLayout(layout)
         
         # Set the size, alignment, and title
         self.setMinimumSize(QSize(600, 600))
         self.setWindowTitle('Hello, universe!')
-        #icon = QIcon('logo-128.png')
         icon = QIcon('gal-256.png')
         self.setWindowIcon(icon)
 
         fn = 'data/example.jpg'
-        #self.imagefn = fn
-        #self.solve_finished(fn)
         self.open_file(fn=fn)
 
     def replot_finished(self):
-        print 'Redrawing plot finished.'
-        #self.redraw_worker = None
-        #if self.redraw_again:
-        #    self.resizeEvent(None)
+        #print 'Redrawing plot finished.'
         self.update()
         
     def resizeEvent(self, event):
-        print 'Resize'
-        #self.redraw_plot()
-
+        #print 'Resize'
         self.redraw_worker.replot(None)
-        
-        # if self.redraw_worker is None:
-        #     worker = RedrawPlotThread(self)
-        #     finfunc = Slot(str)(lambda: self.replot_finished())
-        #     worker.finishedSignal.connect(finfunc)
-        #     self.redraw_again = False
-        #     self.redraw_worker = worker
-        #     print 'Starting redraw worker...'
-        #     worker.start()
-        # else:
-        #     self.redraw_again = True
             
     def run(self):
         ''' Show the application window and start the main event loop.
@@ -226,6 +172,7 @@ class HelloWorldApp(QWidget):
         # for t in targets:
         #     tt.extend(t.split(','))
         # targets = tt
+        targets = str(targets)
         targets = targets.strip().split(',')
         targets = [t.strip() for t in targets]
         
@@ -244,28 +191,28 @@ class HelloWorldApp(QWidget):
 
         targets = self.parse_targets(self.targetBox.text())
         print 'Parsed targets:', targets
+
+        jd = datetojd(self.imageTimestamp)
+        rdtargets = []
+        for t in targets:
+            if len(t) == 0:
+                continue
+            print 'Target: "%s"' % t
+            if t in ['Jupiter', 'Mars']:
+                ephem = InterpEphemeris('data/ephemerides/%s-ephem.fits' %
+                                        t.lower())
+                ra,dec = ephem(jd)
+                rdtargets.append((ra,dec,t))
+            else:
+                rdtargets.append((None,None,t))
+        targets = rdtargets
+                
         if targets != self.targets:
             print 'Targets changed!'
             self.targets = targets
             self.redraw_plot()
             
-        # ncolor = dict(blue='green', green='red', red='blue')
-        # self.color = ncolor[self.color]
-        # print 'color', self.color
-        # 
-        # W,H = self.size().width(), self.size().height()
-        # plot = Plotstuff('png', size=(W,H))
-        # plot.color = self.color
-        # plot.plot('fill')
-        # img = plot.view_image_as_numpy()
-        # print 'Image:', img.shape, img.dtype
-        # print img[:4,:4,:]
-        # self.imagebox.setImage(img)
-        
     def open_file(self, fn=None):
-        #if False: #True:
-        #    fn = 'data/example.jpg'
-        #else:
         if fn is None:
             fn,filt = QFileDialog.getOpenFileName(
                 self, 'Open Image', os.path.join(os.getcwd(), 'data'),
@@ -336,50 +283,54 @@ class HelloWorldApp(QWidget):
             return
         print 'Solved!'
         self.wcsfn = wcsfn
+        self.targets_changed()
         self.redraw_plot()
 
     def redraw_plot(self):
         wcsfn = self.wcsfn
-        print 'wcsfn:', wcsfn, type(wcsfn)
+        #print 'wcsfn:', wcsfn, type(wcsfn)
         if wcsfn is None:
             self.setStatus('Failed to located your image on the sky!')
             return
 
-        # self.skyplot.imgfn = self.imagefn
-        # self.skyplot.wcsfn = self.wcsfn
-        # self.skyplot.targets = self.targets
-
+        t0 = time.clock()
         plot = self.make_plot()
+        print 'plot:', time.clock()-t0
+        t0 = time.clock()
         img = plot.view_image_as_numpy()
+        print 'view_image:', time.clock()-t0
+        t0 = time.clock()
         self.imagebox.setImage(img)
+        print 'setImage:', time.clock()-t0
+        t0 = time.clock()
 
     def make_plot(self):
+        t0 = time.clock()
+
         w = self.imagebox.width()
         h = self.imagebox.height()
         wcs = Sip(self.wcsfn, 0)
         ra,dec = wcs.radec_center()
-        print 'RA,Dec center', ra,dec
         pixscale = wcs.pixel_scale()
         imw = wcs.get_width()
         imh = wcs.get_height()
         scale = 2. / min(w / float(imw), h / float(imh))
-
         plotwcs = Tan(ra, dec, w/2.+0.5, h/2.+0.5,
                       wcs.cd[0]*scale, wcs.cd[1]*scale,
                       wcs.cd[2]*scale, wcs.cd[3]*scale,
                       w, h)
-    
         plot = Plotstuff('png', size=(w,h), ra=ra, dec=dec,
                          width=1.)
         plot.wcs_tan = plotwcs
-        #print 'Plot WCS:'
-        anwcs_print_stdout(plot.wcs)
-        #print 'WCS:', str(plotwcs)
+        #anwcs_print_stdout(plot.wcs)
         plot.color = 'black'
         plot.alpha = 1.
         plot.apply_settings()
         plot.plot('fill')
 
+        print 'fill:', time.clock()-t0
+        t0 = time.clock()
+        
         plot.color = 'white'
         plot.resample = 1
         plot.apply_settings()
@@ -387,14 +338,24 @@ class HelloWorldApp(QWidget):
         plot.image.set_wcs_file(self.wcsfn, 0)
         plot.plot('image')
 
+        print 'image:', time.clock()-t0
+        t0 = time.clock()
+        
         plot.color = 'green'
         plot.outline.wcs_file = self.wcsfn
         plot.plot('outline')
+
+        print 'outline:', time.clock()-t0
+        t0 = time.clock()
 
         plot.color = 'gray'
         plot.alpha = 0.5
         plot.plot_grid(10., 10., 10., 10.)
 
+        print 'grid:', time.clock()-t0
+        t0 = time.clock()
+        
+        plot.ann.NGC = False
         plot.ann.constellations = True
         plot.ann.constellation_lines = True
         plot.ann.constellation_labels = True
@@ -402,29 +363,30 @@ class HelloWorldApp(QWidget):
         plot.ann.bright = False
         plot.plot('annotations')
 
+        print 'constellations:', time.clock()-t0
+        t0 = time.clock()
+        
         plot.bg_rgba = (0., 0., 0., 0.8)
         plot.bg_box = 1
         plot.pargs.marker_fg_layer = 1
         plot.apply_settings()
-        jd = datetojd(self.imageTimestamp)
-        for t in self.targets:
-            if len(t) == 0:
-                continue
-            print 'Target: "%s"' % t
-            if t in ['Jupiter', 'Mars']:
-                ephem = InterpEphemeris('data/ephemerides/%s-ephem.fits' %
-                                        t.lower())
-                ra,dec = ephem(jd)
-                plot.ann.add_target(ra, dec, t)
+
+        for ra,dec,t in self.targets:
+            if ra is None:
+                plot.ann.add_named_target(t)
             else:
-                plot.ann.add_named_target(str(t))
-            
+                plot.ann.add_target(ra, dec, t)
+        
         plot.color = 'green'
         plot.ann.constellations = False
         plot.ann.constellation_lines = False
         plot.ann.constellation_labels = False
         plot.ann_constellation_pastel = False
         plot.plot('annotations')
+
+        print 'targets:', time.clock()-t0
+        t0 = time.clock()
+
         return plot
         
         
@@ -449,38 +411,38 @@ class RedrawPlotThread(QThread):
         self.restart = False
 
     def replot(self, plotargs):
-        print 'Replot'
+        #print 'Replot'
         if True:
-            print 'Locking mutex...'
+            #print 'Locking mutex...'
             locker = QMutexLocker(self.mutex)
             self.plotargs = plotargs
             if not self.isRunning():
-                print 'Starting thread...'
+                #print 'Starting thread...'
                 self.start()
             else:
                 self.restart = True
-                print 'Waking condition variable.'
+                #print 'Waking condition variable.'
                 self.cond.wakeOne()
             del locker
                 
     def run(self):
-        print 'Redraw worker started'
+        #print 'Redraw worker started'
         while True:
             if True:
-                print 'Locking mutex...'
+                #print 'Locking mutex...'
                 locker = QMutexLocker(self.mutex)
                 plotargs = self.plotargs
                 del locker
-            print 'Drawing plot...'
+            #print 'Drawing plot...'
             self.main.redraw_plot()
             #time.sleep(0.1)
-            print 'Finished drawing plot.'
+            #print 'Finished drawing plot.'
             self.finishedSignal.emit()
             if True:
-                print 'Locking mutex...'
+                #print 'Locking mutex...'
                 locker = QMutexLocker(self.mutex)
                 if not self.restart:
-                    print 'Waiting on condition...'
+                    #print 'Waiting on condition...'
                     self.cond.wait(self.mutex)
                 self.restart = False
                 del locker
