@@ -88,8 +88,8 @@ class HelloWorldApp(QWidget):
         self.app = app
         self.solveThreads = {}
 
-        self.redraw_worker = None
-        self.redraw_again = False
+        self.redraw_worker = RedrawPlotThread(self)
+        #self.redraw_again = False
         
         # The image filename being solved/shown
         self.imagefn = None
@@ -156,25 +156,27 @@ class HelloWorldApp(QWidget):
 
     def replot_finished(self):
         print 'Redrawing plot finished.'
-        self.redraw_worker = None
-        if self.redraw_again:
-            self.resizeEvent(None)
+        #self.redraw_worker = None
+        #if self.redraw_again:
+        #    self.resizeEvent(None)
         self.update()
         
     def resizeEvent(self, event):
         print 'Resize'
         #self.redraw_plot()
 
-        if self.redraw_worker is None:
-            worker = RedrawPlotThread(self)
-            finfunc = Slot(str)(lambda: self.replot_finished())
-            worker.finishedSignal.connect(finfunc)
-            self.redraw_again = False
-            self.redraw_worker = worker
-            print 'Starting redraw worker...'
-            worker.start()
-        else:
-            self.redraw_again = True
+        self.redraw_worker.replot(None)
+        
+        # if self.redraw_worker is None:
+        #     worker = RedrawPlotThread(self)
+        #     finfunc = Slot(str)(lambda: self.replot_finished())
+        #     worker.finishedSignal.connect(finfunc)
+        #     self.redraw_again = False
+        #     self.redraw_worker = worker
+        #     print 'Starting redraw worker...'
+        #     worker.start()
+        # else:
+        #     self.redraw_again = True
             
     def run(self):
         ''' Show the application window and start the main event loop.
@@ -421,12 +423,47 @@ class RedrawPlotThread(QThread):
 
     def __init__(self, main):
         super(RedrawPlotThread, self).__init__()
+        self.mutex = QMutex()
+        self.cond = QWaitCondition()
         self.main = main
+        self.restart = False
 
+    def replot(self, plotargs):
+        print 'Replot'
+        if True:
+            print 'Locking mutex...'
+            locker = QMutexLocker(self.mutex)
+            self.plotargs = plotargs
+            if not self.isRunning():
+                print 'Starting thread...'
+                self.start()
+            else:
+                self.restart = True
+                print 'Waking condition variable.'
+                self.cond.wakeOne()
+            del locker
+                
     def run(self):
-        self.main.redraw_plot()
-        self.finishedSignal.emit()
-    
+        print 'Redraw worker started'
+        while True:
+            if True:
+                print 'Locking mutex...'
+                locker = QMutexLocker(self.mutex)
+                plotargs = self.plotargs
+                del locker
+            print 'Drawing plot...'
+            self.main.redraw_plot()
+            print 'Finished drawing plot.'
+            self.finishedSignal.emit()
+            if True:
+                print 'Locking mutex...'
+                locker = QMutexLocker(self.mutex)
+                if not self.restart:
+                    print 'Waiting on condition...'
+                    self.cond.wait(self.mutex)
+                self.restart = False
+                del locker
+            
 class SolveImageThread(QThread):
     finishedSignal = Signal(str)
 
