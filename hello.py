@@ -38,6 +38,13 @@ sys.exit(app.exec_())
 
 '''
 
+def resource_path(relative):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative)
+    else:
+        return relative
+
+    
 class DrawingPanel(QWidget):
     def __init__(self):
         super(DrawingPanel, self).__init__()
@@ -128,7 +135,7 @@ class HelloWorldApp(QWidget):
         icon = QIcon('gal-256.png')
         self.setWindowIcon(icon)
 
-        fn = 'data/example.jpg'
+        fn = resource_path('data/example.jpg')
         self.open_file(fn=fn)
 
     def resizeEvent(self, event):
@@ -192,8 +199,9 @@ class HelloWorldApp(QWidget):
                 continue
             print 'Target: "%s"' % t
             if t in ['Jupiter', 'Mars']:
-                ephem = InterpEphemeris('data/ephemerides/%s-ephem.fits' %
-                                        t.lower())
+                efn = resource_path('data/ephemerides/%s-ephem.fits' %
+                                    t.lower())
+                ephem = InterpEphemeris(efn)
                 ra,dec = ephem(jd)
                 rdtargets.append((ra,dec,t))
             else:
