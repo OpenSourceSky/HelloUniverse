@@ -198,7 +198,7 @@ class HelloWorldApp(QWidget):
             if len(t) == 0:
                 continue
             print 'Target: "%s"' % t
-            if t in ['Jupiter', 'Mars']:
+            if t in ['Jupiter', 'Mars', 'Lovejoy']:
                 efn = resource_path('data/ephemerides/%s-ephem.fits' %
                                     t.lower())
                 ephem = InterpEphemeris(efn)
@@ -300,7 +300,10 @@ class HelloWorldApp(QWidget):
         pixscale = wcs.pixel_scale()
         imw = wcs.get_width()
         imh = wcs.get_height()
+        print 'Image size:', imw, imh
+        print 'Plot size:', w, h
         scale = 2. / min(w / float(imw), h / float(imh))
+        print 'Scale:', scale
         plotwcs = Tan(ra, dec, w/2.+0.5, h/2.+0.5,
                       wcs.cd[0]*scale, wcs.cd[1]*scale,
                       wcs.cd[2]*scale, wcs.cd[3]*scale,

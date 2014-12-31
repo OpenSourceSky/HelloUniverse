@@ -1,6 +1,3 @@
-gal.icns: gal-256.png
-	png2icns $@ $^
-
  #--onefile
 #pyinstaller --windowed --onedir \
 #	--icon=gal.icns --name Hello --noconfirm hello.py 
@@ -11,12 +8,16 @@ app: gal.icns
 	cp gal.icns dist/Hello.app/Contents/Resources/icon-windowed.icns
 	cp qt.conf dist/Hello.app/Contents/Resources/
 	cp qt.conf dist/Hello
+	rm -rf dist/dmg
 	mkdir dist/dmg
 	cp -a dist/Hello.app dist/dmg/
 	rm hello.dmg
 	hdiutil create hello.dmg -volname "Hello Universe" -srcfolder dist/dmg
 
 .PHONY: app
+
+gal.icns: gal-256.png
+	png2icns $@ $^
 
 
 #
